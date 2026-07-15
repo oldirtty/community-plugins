@@ -21,6 +21,17 @@ function watchState(key, cb)
     noctalia.state.watch(key, cb)
 end
 
+function killWithPidFile(file)
+    if noctalia.fileExists(file) then
+        local pid = noctalia.string.trim(noctalia.readFile(file))
+
+        if type(pid) == "string" and pid ~= "" then
+            noctalia.runAsync(`pkill -9 -P {pid}`)
+        end
+        noctalia.removeFile(file)
+    end
+end
+
 -- Vars
 local branch = cfg("branch")
 local updateCheckInterval = cfg("check_interval")
@@ -28,9 +39,11 @@ local checkDurationThreshold = cfg("check_duration_threshold")
 local systemStatsCheckInterval = cfg("system_stats_check_interval")
 local stateDir = "/tmp/nix-monitor"
 local remoteHashFile = stateDir .. "/remoteHash"
-local remotePidFile = stateDir .. "/remoteHash.pid"
 local storeSizeFile = stateDir .. "/storeSize"
 local closureSizeFile = stateDir .. "/closureSize"
+local remotePidFile = stateDir .. "/remoteHash.pid"
+local storePidFile = stateDir .. "/storeSize.pid"
+local closurePidFile = stateDir .. "/closureSize.pid"
 local showUpdateNotification = true
 
 local localHashCmd  = "nixos-version --hash 2> /dev/null | cut -c -7"
@@ -111,18 +124,12 @@ function onRemoteHashCheckCompleted()
 
     setState("lastRemoteCheckTime", os.time())
     noctalia.runAsync("date '+%Y-%m-%d %H:%M'", function(date) setState("lastRemoteCheckTimeStr", date.stdout) end)
+    noctalia.removeFile(remotePidFile)
 end
 
 function cancelRemoteCheck()
     setState("isRemoteCheckRunning", false)
-    if noctalia.fileExists(remotePidFile) then
-        local pid = noctalia.string.trim(noctalia.readFile(remotePidFile))
-
-        if type(pid) == "string" and pid ~= "" then
-            noctalia.runAsync(`pkill -9 -P {pid}`)
-        end
-        noctalia.removeFile(remotePidFile)
-    end
+    killWithPidFile(remotePidFile)
 end
 
 -- Generation check
@@ -157,8 +164,9 @@ function checkSystemStats()
     setState("isSystemStatsCheckRunning", true)
     setState("lastSystemStatsCheckTime", os.time())
 
-    noctalia.runAsync(`{storeSizeCmd} > {storeSizeFile} &`)
-    noctalia.runAsync(`{closureSizeCmd} > {closureSizeFile} &`)
+    -- Sleep 0 to trigger noctalia calling /bin/sh
+    noctalia.runAsync(`sleep 0 && {storeSizeCmd} > {storeSizeFile} & echo $! > {storePidFile}`)
+    noctalia.runAsync(`sleep 0 && {closureSizeCmd} > {closureSizeFile} & echo $! > {closurePidFile}`)
 end
 
 function checkSystemStatsFile()
@@ -178,9 +186,16 @@ function checkSystemStatsFile()
 
     if success then
         setState("isSystemStatsCheckRunning", false)
+        noctalia.removeFile(storePidFile)
+        noctalia.removeFile(closurePidFile)
     end
 end
 
+function cancelSystemCheck()
+    setState("isSystemStatsCheckRunning", false)
+    killWithPidFile(storePidFile)
+    killWithPidFile(closurePidFile)
+end
 
 -- Init
 checkLocalHash()
@@ -198,6 +213,7 @@ watchState("command", function(command)
 
     if command == "cancel" then
         cancelRemoteCheck()
+        cancelSystemCheck()
     end
 end)
 
