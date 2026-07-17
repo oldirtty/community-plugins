@@ -173,3 +173,14 @@ icon = "device-laptop"
 description = "Toggles battery conservation mode via the ideapad_acpi driver, on Lenovo IdeaPad and Legion laptops."
 plugin_api = 3
 tags = ["hardware", "shortcut", "system"]
+
+[[plugin]]
+id = "goodroot/noctwhspr"
+name = "noctwhspr"
+version = "1.0.0"
+author = "goodroot"
+license = "MIT"
+icon = "microphone"
+description = "Noctalia companion for hyprwhspr: shows dictation state, click to record, right-click to restart."
+plugin_api = 3
+tags = ["audio", "bar", "recording", "utility"]
