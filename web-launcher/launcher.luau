@@ -8,10 +8,10 @@ local function loadLinks()
 
     for _, line in ipairs(raw) do
         local name, url = line:match("^([^|]+)|(.+)$")
-        if name and url then
+        if name and url and url:match("^https?://") then
             table.insert(links, {
                 name = noctalia.string.trim(name),
-                url  = noctalia.string.trim(url),
+                url = noctalia.string.trim(url),
             })
         else
             noctalia.log("web-launcher: skipped malformed line (expected Name|https://url): " .. tostring(line))
@@ -83,11 +83,20 @@ function onQuery(query)
         end
 
         if text == "" then
-            table.insert(results, { id = link.url, title = link.name, subtitle = link.url, glyph = glyphValue, icon = iconValue })
+            table.insert(results, {
+                id = link.url,
+                title = link.name, subtitle = link.url,
+                glyph = glyphValue, icon = iconValue
+            })
         else
             local score = noctalia.fuzzyScore(text, link.name)
             if score ~= nil then
-                table.insert(results, { id = link.url, title = link.name, subtitle = link.url, glyph = glyphValue, icon = iconValue, score = score })
+                table.insert(results, {
+                    id = link.url,
+                    title = link.name, subtitle = link.url,
+                    glyph = glyphValue, icon = iconValue,
+                    score = score
+                })
             end
         end
     end
@@ -95,8 +104,12 @@ function onQuery(query)
     launcher.setResults(query, results)
 end
 
+local function shellEscape(raw)
+    return "'" .. raw:gsub("'", "'\\''") .. "'"
+end
+
 function onActivate(id)
-    noctalia.runAsync("xdg-open '" .. id .. "'")
+    noctalia.runAsync("xdg-open " .. shellEscape(id))
     if noctalia.getConfig("notify") then
         noctalia.notify("Websites", "Opening " .. id)
     end
