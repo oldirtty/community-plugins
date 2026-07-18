@@ -217,3 +217,14 @@ icon = "image"
 description = "Drag and drop an image onto the desktop to set it as wallpaper using Noctalia's wallpaper settings."
 plugin_api = 3
 tags = ["desktop", "wallpaper"]
+
+[[plugin]]
+id = "cleboost/zed-provider"
+name = "Zed Provider"
+version = "1.0.0"
+author = "cleboost"
+license = "MIT"
+icon = "folder-open"
+description = "Open a recent Zed project from the launcher. Type /zed to list your projects."
+plugin_api = 3
+tags = ["launcher", "development", "productivity"]
