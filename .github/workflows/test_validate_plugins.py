@@ -125,6 +125,82 @@ class PluginConfigAccessorTests(unittest.TestCase):
         self.assertEqual(validate_plugins.obsolete_config_accessors(source), [])
 
 
+class TranslationKeyTests(unittest.TestCase):
+    def test_accepts_valid_keys(self) -> None:
+        for key in (
+            "settings.translation_language.label",
+            "settings.translation_language.options.zh-hans",
+            "settings.translation_language.options.en",
+            "a.b-c.d_e.f0",
+        ):
+            with self.subTest(key=key):
+                self.assertTrue(validate_plugins.is_valid_translation_key(key))
+
+    def test_rejects_invalid_keys(self) -> None:
+        for key in (
+            "settings.options.zh-Hans",  # uppercase segment
+            "settings.options.zh-Hant",
+            "settings.Label",
+            "settings._leading",  # leading underscore in a segment
+            "settings..options",  # empty segment
+            "",
+        ):
+            with self.subTest(key=key):
+                self.assertFalse(validate_plugins.is_valid_translation_key(key))
+
+    def test_walks_nested_keys_and_reports_full_paths(self) -> None:
+        translations = {
+            "settings": {
+                "translation_language": {
+                    "options": {"zh-Hans": "Simplified", "zh-Hant": "Traditional", "en": "English"}
+                }
+            }
+        }
+        self.assertEqual(
+            validate_plugins.invalid_translation_keys(translations),
+            [
+                "settings.translation_language.options.zh-Hans",
+                "settings.translation_language.options.zh-Hant",
+            ],
+        )
+
+    def validate_keys(self, translations: object) -> list[str]:
+        with tempfile.TemporaryDirectory() as directory:
+            plugin_dir = Path(directory) / "example"
+            plugin_dir.mkdir()
+            validator = validate_plugins.Validator(Path(directory))
+            validator.validate_translation_keys(plugin_dir, translations)
+            return validator.errors
+
+    def test_reports_bad_json_keys_without_a_reference(self) -> None:
+        errors = self.validate_keys({"settings": {"options": {"zh-Hans": "Simplified"}}})
+        self.assertEqual(len(errors), 1)
+        self.assertIn("settings.options.zh-Hans", errors[0])
+        self.assertIn("invalid translation key format", errors[0])
+
+    def test_accepts_valid_json_keys(self) -> None:
+        self.assertEqual(self.validate_keys({"settings": {"options": {"zh-hans": "Simplified"}}}), [])
+
+    def validate_reference(self, label_key: object) -> list[str]:
+        validator = validate_plugins.Validator(Path("/repo"))
+        validator.validate_translation_key(
+            Path("/repo/example/plugin.toml"),
+            {label_key: "x"} if isinstance(label_key, str) else {},
+            "setting[0]",
+            "label_key",
+            label_key,
+        )
+        return validator.errors
+
+    def test_rejects_badly_formatted_reference(self) -> None:
+        errors = self.validate_reference("settings.options.zh-Hans")
+        self.assertEqual(len(errors), 1)
+        self.assertIn("is not a valid translation key", errors[0])
+
+    def test_accepts_well_formatted_existing_reference(self) -> None:
+        self.assertEqual(self.validate_reference("settings.options.zh-hans"), [])
+
+
 class ReadmeTests(unittest.TestCase):
     MANIFEST = {
         "id": "me/example",

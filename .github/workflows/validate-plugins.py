@@ -67,6 +67,14 @@ ID_SEGMENT_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 # Names the website reserves for its own routes; a plugin folder cannot take one.
 RESERVED_NAMES = {"license", "readme", "index", "api", "admin", "static", "assets"}
 
+# The store flattens every plugin's translations under its id and rejects keys that are not
+# lowercase. A dotted key is a path of segments; each segment allows a-z, 0-9, dashes, and
+# underscores, but an underscore may not lead a segment. Uppercase (e.g. "zh-Hans") is out.
+TRANSLATION_KEY_SEGMENT_RE = re.compile(r"[a-z0-9-][a-z0-9_-]*")
+TRANSLATION_KEY_RULE = (
+    "keys must be lowercase and contain only a-z, 0-9, dots, dashes, and non-leading underscores"
+)
+
 # Files every published plugin ships: the site renders the README as the plugin page and
 # the thumbnail as its card, and the English catalog backs every label_key.
 REQUIRED_PLUGIN_FILES = ("README.md", "thumbnail.webp", "translations/en.json")
@@ -354,6 +362,25 @@ def webp_dimensions(header: bytes) -> tuple[int, int] | None:
     return None
 
 
+def is_valid_translation_key(key: str) -> bool:
+    """True if a dotted translation key obeys the store's lowercase key rule."""
+    parts = key.split(".")
+    return all(TRANSLATION_KEY_SEGMENT_RE.fullmatch(part) for part in parts)
+
+
+def invalid_translation_keys(node: Any, prefix: str = "") -> list[str]:
+    """Return dotted paths in a translations tree whose own segment breaks the key rule."""
+    invalid: list[str] = []
+    if not isinstance(node, dict):
+        return invalid
+    for key, value in node.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if not isinstance(key, str) or not is_valid_translation_key(key):
+            invalid.append(path)
+        invalid.extend(invalid_translation_keys(value, path))
+    return invalid
+
+
 def has_key_path(data: Any, dotted_key: str) -> bool:
     if isinstance(data, dict) and dotted_key in data:
         return True
@@ -417,6 +444,14 @@ class Validator:
     ) -> None:
         if not is_non_empty_string(value):
             self.add_context_error(manifest_path, context, f"{field} must be a non-empty string")
+            return
+
+        if not is_valid_translation_key(value):
+            self.add_context_error(
+                manifest_path,
+                context,
+                f"{field} '{value}' is not a valid translation key: {TRANSLATION_KEY_RULE}",
+            )
             return
 
         if translations is None:
@@ -950,6 +985,20 @@ class Validator:
             if "advanced" in setting and not isinstance(setting["advanced"], bool):
                 self.add_context_error(manifest_path, context, "advanced must be a bool")
 
+    def validate_translation_keys(self, plugin_dir: Path, translations: Any | None) -> None:
+        # The store rejects the whole plugin if any translation key is not lowercase, so catch
+        # bad keys (e.g. "zh-Hans") here even when no label_key references them.
+        if not isinstance(translations, dict):
+            return
+
+        invalid = invalid_translation_keys(translations)
+        if invalid:
+            path = plugin_dir / "translations" / "en.json"
+            self.add_error(
+                path,
+                f"invalid translation key format: {', '.join(invalid)}; {TRANSLATION_KEY_RULE}",
+            )
+
     def validate_required_files(self, manifest_path: Path, plugin_dir: Path) -> None:
         for required in REQUIRED_PLUGIN_FILES:
             if not (plugin_dir / required).is_file():
@@ -1136,6 +1185,7 @@ class Validator:
         translations = self.load_english_translations(plugin_dir)
 
         self.validate_root_fields(manifest_path, manifest)
+        self.validate_translation_keys(plugin_dir, translations)
         self.validate_required_files(manifest_path, plugin_dir)
         self.validate_thumbnail(manifest_path, plugin_dir)
         self.validate_readme(plugin_dir, manifest)
