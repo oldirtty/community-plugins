@@ -1,0 +1,139 @@
+id           = "oldirtty/workspaces-renamed"
+name         = "Workspaces Renamed"
+version      = "0.1.5"
+plugin_api   = 26
+author       = "oldirtty"
+license      = "MIT"
+icon         = "layout-grid"
+description  = "i3/sway/dwm-style workspace buttons for the Umbriel compositor, with custom labels per position."
+tags         = ["workspaces", "umbriel", "i3", "bar"]
+# dependencies = ["umbriel"]
+
+[[widget]]
+id    = "workspaces"
+entry = "widget.luau"
+
+[widget.actions]
+scroll_up = "workspace-switch prev"
+scroll_down = "workspace-switch next"
+
+  [[widget.setting]]
+  key             = "custom_labels"
+  type            = "string_list"
+  label_key       = "settings.custom_labels.label"
+  description_key = "settings.custom_labels.description"
+  default         = []
+
+  [[widget.setting]]
+  key       = "hide_first"
+  type      = "bool"
+  label_key = "settings.hide_first.label"
+  default   = false
+
+  [[widget.setting]]
+  key       = "hide_last"
+  type      = "bool"
+  label_key = "settings.hide_last.label"
+  default   = false
+
+  [[widget.setting]]
+  key       = "active_size"
+  type      = "int"
+  label_key = "settings.active_size.label"
+  default   = 12
+  min       = 0
+  max       = 48
+
+  [[widget.setting]]
+  key       = "inactive_size"
+  type      = "int"
+  label_key = "settings.inactive_size.label"
+  default   = 8
+  min       = 0
+  max       = 48
+
+  [[widget.setting]]
+  key     = "style"
+  type    = "select"
+  label_key = "settings.style.label"
+  default = "Solid"
+  options = [
+    { value = "Solid", label_key = "settings.style.solid"},
+    { value = "Border", label_key = "settings.style.border"},
+    { value = "Underline", label_key = "settings.style.underline"},
+  ]
+
+  [[widget.setting]]
+  key       = "border_width"
+  type      = "int"
+  label_key = "settings.border_width.label"
+  default   = 2
+  min       = 1
+  max       = 24
+  visible_when = { key = "style" , values = ["Border"]}
+
+  [[widget.setting]]
+  key       = "underline_width"
+  type      = "int"
+  label_key = "settings.underline_width.label"
+  default   = 2
+  min       = 1
+  max       = 12
+  visible_when = { key = "style", values = ["Underline"] }
+
+  [[widget.setting]]
+  key       = "underline_position"
+  type      = "select"
+  label_key = "settings.underline_position.label"
+  default   = "Bottom"
+  options = [
+    { value = "Bottom", label_key = "settings.underline_position.bottom" },
+    { value = "Top", label_key = "settings.underline_position.top" },
+  ]
+  visible_when = { key = "style", values = ["Underline"] }
+
+  [[widget.setting]]
+  key       = "radius"
+  type      = "int"
+  label_key = "settings.radius.label"
+  default   = 0
+  min       = 0
+  max       = 48
+
+  [[widget.setting]]
+  key       = "gap"
+  type      = "int"
+  label_key = "settings.gap.label"
+  default   = 2
+  min       = 0
+  max       = 16
+
+  [[widget.setting]]
+  key       = "focused_color"
+  type      = "color"
+  label_key = "settings.focused_color.label"
+  default   = "primary"
+
+  [[widget.setting]]
+  key       = "focused_text_color"
+  type      = "color"
+  label_key = "settings.focused_text_color.label"
+  default   = "on_primary"
+
+  [[widget.setting]]
+  key       = "occupied_color"
+  type      = "color"
+  label_key = "settings.occupied_color.label"
+  default   = "#00000000"
+
+  [[widget.setting]]
+  key       = "occupied_text_color"
+  type      = "color"
+  label_key = "settings.occupied_text_color.label"
+  default   = "on_surface"
+
+  [[widget.setting]]
+  key       = "empty_color"
+  type      = "color"
+  label_key = "settings.empty_color.label"
+  default   = "outline"
